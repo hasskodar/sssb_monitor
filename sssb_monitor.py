@@ -6,8 +6,8 @@ import os
 # ── KONFIGURATION ──────────────────────────────────────────────────────────────
 # Lokalt: sätt dessa som miljövariabler ELLER ersätt strängarna direkt
 # GitHub Actions: lägg dem som Secrets (Settings → Secrets → Actions)
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "DIN_BOT_TOKEN")
-TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID",   "DIN_CHAT_ID")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8245603181:AAHtlazQvWqPtfTqEvWnwPdoeodPII2fPlg")
+TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID",   "-5376816061")
 
 # Fil där vi sparar kända lägenheter mellan körningar
 STATE_FILE = "known_apartments.json"
