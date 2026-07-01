@@ -1,0 +1,36 @@
+name: SSSB Domus Monitor
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # var 5:e minut, dygnet runt
+  workflow_dispatch:         # tillåter manuell körning från GitHub-UI
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installera beroenden
+        run: pip install requests
+
+      - name: Ladda ner state-fil (om den finns)
+        uses: actions/cache@v4
+        with:
+          path: known_apartments.json
+          key: sssb-state-${{ github.run_id }}
+          restore-keys: |
+            sssb-state-
+
+      - name: Kör monitor
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python sssb_monitor.py
