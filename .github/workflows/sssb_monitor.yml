@@ -5,6 +5,7 @@ on:
   schedule:
     - cron: "*/10 * * * *"   # var 5:e minut, dygnet runt
   workflow_dispatch:         # tillåter manuell körning från GitHub-UI
+  push:
 
 jobs:
   check:
