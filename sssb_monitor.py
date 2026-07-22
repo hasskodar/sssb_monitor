@@ -84,17 +84,12 @@ def format_message(apt):
 def main():
     known_ids = load_known()
     all_current_ids = set()
-    first_run = not known_ids
 
     for area_name, url in AREAS.items():
         print(f"Kollar {area_name}...")
         apartments = fetch_apartments(url)
         current_ids = {apt["objektNr"] for apt in apartments}
         all_current_ids.update(current_ids)
-
-        if first_run:
-            print(f"  Första körningen. Hittade {len(apartments)} lägenhet(er) i {area_name}.")
-            continue
 
         new_apartments = [apt for apt in apartments if apt["objektNr"] not in known_ids]
         if new_apartments:
@@ -107,7 +102,6 @@ def main():
             print(f"  Inga nyheter. {len(apartments)} lägenhet(er) ute just nu.")
 
     save_known(all_current_ids)
-
 
 if __name__ == "__main__":
     main()
