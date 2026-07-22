@@ -12,25 +12,21 @@ TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID",   "DIN_CHAT_ID")
 # Fil där vi sparar kända lägenheter mellan körningar
 STATE_FILE = "known_apartments.json"
 
-# SSSB API-URL (stripped från callback-parametern – vi hanterar JSONP manuellt)
-API_URL = (
-    "https://minasidor.sssb.se/widgets/"
-    "?omraden=Domus"
-    "&callback=cb"
-    "&widgets%5B%5D=objektlistabilder%40lagenheter"
-    "&widgets%5B%5D=objektsummering%40lagenheter"
-    "&widgets%5B%5D=paginering%40lagenheter"
-)
+# SSSB API-URL per område
+AREAS = {
+    "Domus": "https://minasidor.sssb.se/widgets/?omraden=Domus&callback=cb&widgets%5B%5D=objektlistabilder%40lagenheter&widgets%5B%5D=objektsummering%40lagenheter&widgets%5B%5D=paginering%40lagenheter",
+    "Nyponet": "https://minasidor.sssb.se/widgets/?omraden=Nypone&callback=cb&widgets%5B%5D=objektlistabilder%40lagenheter&widgets%5B%5D=objektsummering%40lagenheter&widgets%5B%5D=paginering%40lagenheter",
+}
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def fetch_apartments():
-    """Hämtar aktuella Domus-lägenheter från SSSB:s API."""
+def fetch_apartments(url):
+    """Hämtar aktuella lägenheter från SSSB:s API för ett givet område."""
     headers = {
         "User-Agent": "Mozilla/5.0 (compatible; SSSB-monitor/1.0)",
         "Referer": "https://minasidor.sssb.se/lediga-bostader/",
     }
-    resp = requests.get(API_URL, headers=headers, timeout=15)
+    resp = requests.get(url, headers=headers, timeout=15)
     resp.raise_for_status()
 
     # API:t returnerar JSONP: cb({...}); – vi strippar wrapper-funktionen
@@ -74,8 +70,9 @@ def send_telegram(message):
 def format_message(apt):
     """Formaterar ett snyggt Telegram-meddelande för en lägenhet."""
     url = apt.get("detaljUrl", "")
+    area = apt.get("omrade", "SSSB")
     return (
-        f"🏠 <b>Ny lägenhet på Domus!</b>\n"
+        f"🏠 <b>Ny lägenhet på {area}!</b>\n"
         f"📍 {apt.get('adress', '?')}\n"
         f"🛏 {apt.get('typ', '?')}  |  {apt.get('yta', '?')} kvm  |  vån {apt.get('vaning', '?')}\n"
         f"💰 {apt.get('hyra', '?')} {apt.get('hyraEnhet', 'kr')}/mån\n"
@@ -85,31 +82,31 @@ def format_message(apt):
 
 
 def main():
-    print("Kollar SSSB Domus...")
+    known_ids = load_known()
+    all_current_ids = set()
+    first_run = not known_ids
 
-    apartments = fetch_apartments()
-    current_ids = {apt["objektNr"] for apt in apartments}
-    known_ids   = load_known()
+    for area_name, url in AREAS.items():
+        print(f"Kollar {area_name}...")
+        apartments = fetch_apartments(url)
+        current_ids = {apt["objektNr"] for apt in apartments}
+        all_current_ids.update(current_ids)
 
-    new_apartments = [apt for apt in apartments if apt["objektNr"] not in known_ids]
+        if first_run:
+            print(f"  Första körningen. Hittade {len(apartments)} lägenhet(er) i {area_name}.")
+            continue
 
-    if not known_ids:
-        # Första körningen – spara bara ner vad som finns, skicka inga notiser
-        print(f"Första körningen. Hittade {len(apartments)} lägenhet(er). Sparar som baseline.")
-        save_known(current_ids)
-        return
+        new_apartments = [apt for apt in apartments if apt["objektNr"] not in known_ids]
+        if new_apartments:
+            print(f"  🚨 {len(new_apartments)} ny/nya i {area_name}!")
+            for apt in new_apartments:
+                msg = format_message(apt)
+                send_telegram(msg)
+                print(f"  Notis skickad: {apt['adress']}")
+        else:
+            print(f"  Inga nyheter. {len(apartments)} lägenhet(er) ute just nu.")
 
-    if new_apartments:
-        print(f"🚨 {len(new_apartments)} ny/nya lägenhet(er) hittade!")
-        for apt in new_apartments:
-            msg = format_message(apt)
-            send_telegram(msg)
-            print(f"  Notis skickad: {apt['adress']}")
-        save_known(current_ids)
-    else:
-        print(f"Inga nyheter. {len(apartments)} lägenhet(er) ute just nu.")
-        # Uppdatera ändå ifall en gammal lägenhet försvunnit
-        save_known(current_ids)
+    save_known(all_current_ids)
 
 
 if __name__ == "__main__":
